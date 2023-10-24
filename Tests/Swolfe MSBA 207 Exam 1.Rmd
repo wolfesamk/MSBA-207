@@ -1,0 +1,65 @@
+---
+title: "MSBA 207 Chapter 10b"
+author: "Samuel Wolfe"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r libs, include=TRUE}
+library(glmnet)
+library(foreach)
+set.seed(123)
+```
+
+## Loading the data
+
+```{r dataload, include=TRUE}
+train_X <- read.csv('E:/Aliit/School/MSBA/207/MSBA-207/Tests/train_X.csv')
+train_y <- read.csv('E:/Aliit/School/MSBA/207/MSBA-207/Tests/train_y.csv')
+valid_X <- read.csv('E:/Aliit/School/MSBA/207/MSBA-207/Tests/valid_X.csv')
+valid_y <- read.csv('E:/Aliit/School/MSBA/207/MSBA-207/Tests/valid_y.csv')
+```
+
+## Preparing the data
+
+```{r prep, include=TRUE}
+train.df <- cbind(train_X,train_y)
+valid.df <- cbind(valid_X,valid_y)
+
+
+y <- train.df$TenYearCHD
+X <- model.matrix(TenYearCHD ~ ., train.df)[, -1] #remove intercept as glmnet will add intercept
+```
+
+## Models
+
+#### Lasso L1
+
+```{r lasso L1, include=TRUE}
+# Find the best lambda using cross-validation
+
+cv.lasso <- cv.glmnet(X, y, alpha = 1, family = "binomial")
+# Fit the final model on the training data
+model <- glmnet(X, y, alpha = 1, family = "binomial",
+                lambda = cv.lasso$lambda.min)
+# Display regression coefficients
+round(coef(model),5)
+```
+
+#### Lasso with CV
+
+```{r lasso with cs, include=TRUE}
+a <- seq(0.1, 0.9, 0.05)
+search <- foreach(i = a, .combine = rbind) %dopar% {
+  cv <- cv.glmnet(X, y, family = "binomial", nfold = 10, type.measure = "deviance", paralle = FALSE, 
+                  alpha = i)
+  data.frame(cvm = cv$cvm[cv$lambda == cv$lambda.1se], lambda.1se = cv$lambda.1se, alpha = i)
+}
+cv3 <- search[search$cvm == min(search$cvm), ]
+md3 <- glmnet(X, y, family = "binomial", lambda = cv3$lambda.1se, alpha = cv3$alpha)
+round(coef(md3),5)
+```
+
+#### 10b.e
+
+Looking at the coefs I would say that selecting the correct category in conjunction with having an auction duration of 5 days would result in the highest rate of competitive auctions.
